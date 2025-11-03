@@ -1,0 +1,72 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email Notification</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <h1>Email Notification System</h1>
+        <p class="subtitle">Send user data notifications via email</p>
+
+        <!-- API Status Section -->
+        <div class="status-section">
+          <h3>🔌 API Connection Status</h3>
+          <button
+            type="button"
+            id="testConnectionBtn"
+            class="btn btn-secondary"
+          >
+            🔌 Test API Connection
+          </button>
+          <div id="apiStatus" class="status-message"></div>
+        </div>
+
+        <hr />
+
+        <!-- Email Form -->
+        <form id="emailForm">
+          <div class="form-group">
+            <label for="receiverEmail">Recipient Email Address:</label>
+            <input
+              type="email"
+              id="receiverEmail"
+              name="receiverEmail"
+              required
+              placeholder="recipient@example.com"
+            />
+            <small
+              >Enter the email address to receive the user data report</small
+            >
+          </div>
+
+          <button type="submit" id="sendEmailBtn" class="btn btn-primary">
+            Send Email Notification
+          </button>
+        </form>
+
+        <div id="responseMessage" class="message"></div>
+      </div>
+
+      <div class="info-box">
+        <h4>ℹ️ How to use:</h4>
+        <ol>
+          <li>Click "Test API Connection" to check if API is ready</li>
+          <li>Wait for green checkmark to appear</li>
+          <li>Enter the recipient email address</li>
+          <li>Click "Send Email Notification"</li>
+          <li>Email will contain all user data in a table format</li>
+        </ol>
+        <p>
+          <strong>Note:</strong> API endpoint is configured in Azure Static Web
+          App settings.
+        </p>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
