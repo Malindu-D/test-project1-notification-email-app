@@ -18,99 +18,40 @@ window.addEventListener("DOMContentLoaded", async () => {
 
 async function loadConfig() {
   try {
-    console.log("Attempting to load config from /api/config...");
-    // Try to get API endpoints from Azure Static Web App configuration
-    const configResponse = await fetch("/api/config");
+    console.log("Loading API endpoints from Azure configuration...");
 
-    console.log("Config response status:", configResponse.status);
-    console.log("Config response ok:", configResponse.ok);
+    // Get API endpoints from Azure Static Web App environment variables
+    const configResponse = await fetch("/api/config");
 
     if (configResponse.ok) {
       const config = await configResponse.json();
-      console.log("Config data received:", config);
+      console.log("Config loaded successfully");
+
       healthEndpoint = config.healthEndpoint;
       emailEndpoint = config.emailEndpoint;
 
       if (healthEndpoint && emailEndpoint) {
-        console.log("API Endpoints loaded from Azure config");
-        console.log("Health endpoint:", healthEndpoint);
-        console.log("Email endpoint:", emailEndpoint);
+        console.log("✅ API endpoints configured");
         apiStatus.innerHTML =
-          '<div class="status-message status-success">✅ API endpoints loaded from Azure configuration</div>';
+          '<div class="status-message status-success">✅ API endpoints loaded. Ready to test connection.</div>';
         testConnectionBtn.disabled = false;
-        return;
       } else {
-        console.warn("Config loaded but endpoints are empty");
-        console.log("healthEndpoint:", healthEndpoint);
-        console.log("emailEndpoint:", emailEndpoint);
+        console.error("❌ Environment variables not set in Azure");
+        apiStatus.innerHTML =
+          '<div class="status-message status-error">❌ API endpoints not configured. Please set API_HEALTH_ENDPOINT and API_EMAIL_ENDPOINT in Azure Static Web App settings.</div>';
+        testConnectionBtn.disabled = true;
       }
+    } else {
+      throw new Error(
+        `Config endpoint returned status ${configResponse.status}`
+      );
     }
-
-    // If we reach here, Azure config not available (running locally)
-    console.log("Azure config not available - running locally");
-    apiStatus.innerHTML =
-      '<div class="status-message status-warning">⚠️ Running locally. Please enter API endpoints manually below and test connection.</div>';
-
-    // Create manual input for local testing
-    createManualApiInput();
   } catch (error) {
     console.error("Configuration load error:", error);
-    console.log("Falling back to manual input for local testing");
     apiStatus.innerHTML =
-      '<div class="status-message status-warning">⚠️ Running locally. Please enter API endpoints manually below and test connection.</div>';
-    createManualApiInput();
+      '<div class="status-message status-error">❌ Cannot load configuration. Please ensure the app is deployed to Azure Static Web Apps.</div>';
+    testConnectionBtn.disabled = true;
   }
-}
-
-function createManualApiInput() {
-  const statusSection = document.querySelector(".api-test-section");
-
-  // Check if manual input already exists
-  if (document.getElementById("manualApiInput")) return;
-
-  const manualInputHtml = `
-        <div id="manualApiInput" style="margin-top: 15px;">
-            <label for="healthEndpointInput" style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500;">
-                Health Check Endpoint:
-            </label>
-            <input 
-                type="text" 
-                id="healthEndpointInput" 
-                placeholder="https://your-api.azurewebsites.net/api/health"
-                style="width: 100%; padding: 12px; border: 2px solid #4A90E2; border-radius: 8px; font-size: 14px; margin-bottom: 10px;"
-            />
-            <label for="emailEndpointInput" style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500;">
-                Email Send Endpoint:
-            </label>
-            <input 
-                type="text" 
-                id="emailEndpointInput" 
-                placeholder="https://your-api.azurewebsites.net/api/email/send"
-                style="width: 100%; padding: 12px; border: 2px solid #4A90E2; border-radius: 8px; font-size: 14px; margin-bottom: 10px;"
-            />
-        </div>
-    `;
-
-  statusSection.insertAdjacentHTML("beforeend", manualInputHtml);
-
-  const healthInput = document.getElementById("healthEndpointInput");
-  const emailInput = document.getElementById("emailEndpointInput");
-
-  // Enable test button when user enters both URLs
-  const checkInputs = () => {
-    const healthUrl = healthInput.value.trim();
-    const emailUrl = emailInput.value.trim();
-    if (healthUrl && emailUrl) {
-      healthEndpoint = healthUrl;
-      emailEndpoint = emailUrl;
-      testConnectionBtn.disabled = false;
-    } else {
-      testConnectionBtn.disabled = true;
-    }
-  };
-
-  healthInput.addEventListener("input", checkInputs);
-  emailInput.addEventListener("input", checkInputs);
 }
 
 // Test API connection when button is clicked - Uses HEALTH endpoint
@@ -122,7 +63,7 @@ testConnectionBtn.addEventListener("click", async () => {
   try {
     if (!healthEndpoint) {
       apiStatus.innerHTML =
-        '<div class="status-message status-error"> Health endpoint not configured. Please refresh the page.</div>';
+        '<div class="status-message status-error">❌ Health endpoint not configured. Please check Azure environment variables.</div>';
       return;
     }
 
@@ -139,26 +80,26 @@ testConnectionBtn.addEventListener("click", async () => {
       const data = await response.json();
       if (data.success) {
         apiStatus.innerHTML =
-          '<div class="status-message status-success"> API connection successful! Server is running. You can now send emails.</div>';
+          '<div class="status-message status-success">✅ API connection successful! Server is running. You can now send emails.</div>';
         isAPITested = true;
-        console.log("Health check response:", data);
+        console.log("Health check passed:", data);
       } else {
         apiStatus.innerHTML =
-          '<div class="status-message status-warning"> API responded but returned error.</div>';
+          '<div class="status-message status-warning">⚠️ API responded but health check failed.</div>';
         isAPITested = false;
       }
     } else {
-      apiStatus.innerHTML = `<div class="status-message status-error"> API connection failed (Status: ${response.status})</div>`;
+      apiStatus.innerHTML = `<div class="status-message status-error">❌ API connection failed (Status: ${response.status})</div>`;
       isAPITested = false;
     }
   } catch (error) {
     console.error("Connection test error:", error);
     apiStatus.innerHTML =
-      '<div class="status-message status-error"> Cannot connect to API. Please check the URL and try again.</div>';
+      '<div class="status-message status-error">❌ Cannot connect to API. Please verify the endpoint is correct and the API is running.</div>';
     isAPITested = false;
   } finally {
     testConnectionBtn.disabled = false;
-    testConnectionBtn.innerHTML = " Test API Connection";
+    testConnectionBtn.innerHTML = "🔌 Test API Connection";
   }
 });
 
@@ -171,7 +112,7 @@ emailForm.addEventListener("submit", async (e) => {
   // Validation
   if (!emailEndpoint) {
     showMessage(
-      " Email endpoint not configured. Please refresh the page.",
+      "❌ Email endpoint not configured. Please check Azure environment variables.",
       false
     );
     return;
@@ -179,11 +120,11 @@ emailForm.addEventListener("submit", async (e) => {
 
   if (!isAPITested) {
     showMessage(
-      ' Please test API connection first by clicking "Test API Connection" button',
+      '⚠️ Please test API connection first by clicking "Test API Connection" button',
       false
     );
     apiStatus.innerHTML =
-      '<div class="status-message status-warning"> Please click "Test API Connection" button above</div>';
+      '<div class="status-message status-warning">⚠️ Please click "Test API Connection" button above</div>';
     return;
   }
 
@@ -215,20 +156,20 @@ emailForm.addEventListener("submit", async (e) => {
     const data = await response.json();
 
     if (response.ok && data.success) {
-      showMessage(` Success! Email sent to ${receiverEmail}`, true);
+      showMessage(`✅ Success! Email sent to ${receiverEmail}`, true);
       emailForm.reset();
     } else {
-      showMessage(` Error: ${data.message || "Failed to send email"}`, false);
+      showMessage(`❌ Error: ${data.message || "Failed to send email"}`, false);
     }
   } catch (error) {
     console.error("Email send error:", error);
     showMessage(
-      " Cannot connect to API. Please check connection and try again.",
+      "❌ Cannot connect to API. Please check connection and try again.",
       false
     );
   } finally {
     sendEmailBtn.disabled = false;
-    sendEmailBtn.innerHTML = " Send Email Notification";
+    sendEmailBtn.innerHTML = "📧 Send Email Notification";
   }
 });
 
