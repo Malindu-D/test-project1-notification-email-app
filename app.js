@@ -1,5 +1,6 @@
-﻿// Global API endpoint
-let API_ENDPOINT = '';
+﻿// Global API endpoints
+let healthEndpoint = '';
+let emailEndpoint = '';
 let isAPITested = false;
 
 // DOM Elements
@@ -17,16 +18,19 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 async function loadConfig() {
     try {
-        // Try to get API endpoint from Azure Static Web App configuration
+        // Try to get API endpoints from Azure Static Web App configuration
         const configResponse = await fetch('/api/config');
         
         if (configResponse.ok) {
             const config = await configResponse.json();
-            API_ENDPOINT = config.apiEndpoint;
+            healthEndpoint = config.healthEndpoint;
+            emailEndpoint = config.emailEndpoint;
             
-            if (API_ENDPOINT) {
-                console.log('API Endpoint loaded from Azure config:', API_ENDPOINT);
-                apiStatus.innerHTML = '<div class="status-message status-success"> API endpoint loaded from Azure configuration</div>';
+            if (healthEndpoint && emailEndpoint) {
+                console.log('API Endpoints loaded from Azure config');
+                console.log('Health endpoint:', healthEndpoint);
+                console.log('Email endpoint:', emailEndpoint);
+                apiStatus.innerHTML = '<div class="status-message status-success"> API endpoints loaded from Azure configuration</div>';
                 testConnectionBtn.disabled = false;
                 return;
             }
@@ -34,7 +38,7 @@ async function loadConfig() {
         
         // If we reach here, Azure config not available (running locally)
         console.log('Azure config not available - running locally');
-        apiStatus.innerHTML = '<div class="status-message status-warning"> Running locally. Please enter API endpoint manually below and test connection.</div>';
+        apiStatus.innerHTML = '<div class="status-message status-warning"> Running locally. Please enter API endpoints manually below and test connection.</div>';
         
         // Create manual input for local testing
         createManualApiInput();
@@ -42,7 +46,7 @@ async function loadConfig() {
     } catch (error) {
         console.error('Configuration load error:', error);
         console.log('Falling back to manual input for local testing');
-        apiStatus.innerHTML = '<div class="status-message status-warning"> Running locally. Please enter API endpoint manually below and test connection.</div>';
+        apiStatus.innerHTML = '<div class="status-message status-warning"> Running locally. Please enter API endpoints manually below and test connection.</div>';
         createManualApiInput();
     }
 }
@@ -55,13 +59,22 @@ function createManualApiInput() {
     
     const manualInputHtml = `
         <div id="manualApiInput" style="margin-top: 15px;">
-            <label for="apiEndpointInput" style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500;">
-                API Endpoint URL:
+            <label for="healthEndpointInput" style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500;">
+                Health Check Endpoint:
             </label>
             <input 
                 type="text" 
-                id="apiEndpointInput" 
-                placeholder="https://your-api.azurewebsites.net"
+                id="healthEndpointInput" 
+                placeholder="https://your-api.azurewebsites.net/api/health"
+                style="width: 100%; padding: 12px; border: 2px solid #4A90E2; border-radius: 8px; font-size: 14px; margin-bottom: 10px;"
+            />
+            <label for="emailEndpointInput" style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500;">
+                Email Send Endpoint:
+            </label>
+            <input 
+                type="text" 
+                id="emailEndpointInput" 
+                placeholder="https://your-api.azurewebsites.net/api/email/send"
                 style="width: 100%; padding: 12px; border: 2px solid #4A90E2; border-radius: 8px; font-size: 14px; margin-bottom: 10px;"
             />
         </div>
@@ -69,33 +82,41 @@ function createManualApiInput() {
     
     statusSection.insertAdjacentHTML('beforeend', manualInputHtml);
     
-    const apiInput = document.getElementById('apiEndpointInput');
+    const healthInput = document.getElementById('healthEndpointInput');
+    const emailInput = document.getElementById('emailEndpointInput');
     
-    // Enable test button when user enters URL
-    apiInput.addEventListener('input', () => {
-        const url = apiInput.value.trim();
-        if (url) {
-            API_ENDPOINT = url;
+    // Enable test button when user enters both URLs
+    const checkInputs = () => {
+        const healthUrl = healthInput.value.trim();
+        const emailUrl = emailInput.value.trim();
+        if (healthUrl && emailUrl) {
+            healthEndpoint = healthUrl;
+            emailEndpoint = emailUrl;
             testConnectionBtn.disabled = false;
         } else {
             testConnectionBtn.disabled = true;
         }
-    });
+    };
+    
+    healthInput.addEventListener('input', checkInputs);
+    emailInput.addEventListener('input', checkInputs);
 }
 
-// Test API connection when button is clicked
+// Test API connection when button is clicked - Uses HEALTH endpoint
 testConnectionBtn.addEventListener('click', async () => {
     testConnectionBtn.disabled = true;
     testConnectionBtn.innerHTML = '<span class="spinner"></span> Testing...';
     apiStatus.innerHTML = '';
 
     try {
-        const baseUrl = API_ENDPOINT.replace(/\/$/, '');
-        const healthUrl = `${baseUrl}/api/health`;
+        if (!healthEndpoint) {
+            apiStatus.innerHTML = '<div class="status-message status-error"> Health endpoint not configured. Please refresh the page.</div>';
+            return;
+        }
 
-        console.log('Testing connection to:', healthUrl);
+        console.log('Testing connection to:', healthEndpoint);
 
-        const response = await fetch(healthUrl, {
+        const response = await fetch(healthEndpoint, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json'
@@ -105,8 +126,9 @@ testConnectionBtn.addEventListener('click', async () => {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                apiStatus.innerHTML = '<div class="status-message status-success"> API connection successful! You can now send emails.</div>';
+                apiStatus.innerHTML = '<div class="status-message status-success"> API connection successful! Server is running. You can now send emails.</div>';
                 isAPITested = true;
+                console.log('Health check response:', data);
             } else {
                 apiStatus.innerHTML = '<div class="status-message status-warning"> API responded but returned error.</div>';
                 isAPITested = false;
@@ -125,15 +147,15 @@ testConnectionBtn.addEventListener('click', async () => {
     }
 });
 
-// Handle form submission
+// Handle form submission - Uses EMAIL endpoint
 emailForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const receiverEmail = receiverEmailInput.value.trim();
 
     // Validation
-    if (!API_ENDPOINT) {
-        showMessage(' Please enter API endpoint and test connection first', false);
+    if (!emailEndpoint) {
+        showMessage(' Email endpoint not configured. Please refresh the page.', false);
         return;
     }
 
@@ -154,13 +176,10 @@ emailForm.addEventListener('submit', async (e) => {
     responseMessage.innerHTML = '';
 
     try {
-        const baseUrl = API_ENDPOINT.replace(/\/$/, '');
-        const emailUrl = `${baseUrl}/api/email/send`;
-
-        console.log('Sending email request to:', emailUrl);
+        console.log('Sending email request to:', emailEndpoint);
         console.log('Receiver email:', receiverEmail);
 
-        const response = await fetch(emailUrl, {
+        const response = await fetch(emailEndpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
