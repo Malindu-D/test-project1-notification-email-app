@@ -1,6 +1,6 @@
 module.exports = async function (context, req) {
-  context.log('Config API called');
-  
+  context.log("Config API called");
+
   context.res = {
     status: 200,
     headers: {
