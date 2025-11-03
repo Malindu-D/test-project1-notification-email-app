@@ -31,15 +31,17 @@ async function loadConfig() {
       emailEndpoint = config.emailEndpoint;
 
       if (healthEndpoint && emailEndpoint) {
-        console.log("✅ API endpoints configured");
+        console.log("✅ API endpoints configured from Azure");
         apiStatus.innerHTML =
-          '<div class="status-message status-success">✅ API endpoints loaded. Ready to test connection.</div>';
+          '<div class="status-message status-success">✅ API endpoints loaded from Azure. Ready to test connection.</div>';
         testConnectionBtn.disabled = false;
+        return;
       } else {
         console.error("❌ Environment variables not set in Azure");
         apiStatus.innerHTML =
           '<div class="status-message status-error">❌ API endpoints not configured. Please set API_HEALTH_ENDPOINT and API_EMAIL_ENDPOINT in Azure Static Web App settings.</div>';
         testConnectionBtn.disabled = true;
+        return;
       }
     } else {
       throw new Error(
@@ -47,10 +49,20 @@ async function loadConfig() {
       );
     }
   } catch (error) {
-    console.error("Configuration load error:", error);
+    console.warn("⚠️ Azure config not available - using local development mode");
+    console.log("Error details:", error.message);
+    
+    // For local development - hardcode the endpoints
+    healthEndpoint = "https://test-project-api-service-cuasbtc2etdxcxb8.southeastasia-01.azurewebsites.net/api/health";
+    emailEndpoint = "https://test-project-api-service-cuasbtc2etdxcxb8.southeastasia-01.azurewebsites.net/api/email/send";
+    
     apiStatus.innerHTML =
-      '<div class="status-message status-error">❌ Cannot load configuration. Please ensure the app is deployed to Azure Static Web Apps.</div>';
-    testConnectionBtn.disabled = true;
+      '<div class="status-message status-warning">⚠️ Running in local development mode. Using default API endpoints.</div>';
+    testConnectionBtn.disabled = false;
+    
+    console.log("Local endpoints configured:");
+    console.log("Health:", healthEndpoint);
+    console.log("Email:", emailEndpoint);
   }
 }
 
